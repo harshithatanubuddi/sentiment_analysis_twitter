@@ -12,7 +12,7 @@ from impact import impact_score
 
 app = FastAPI()
 
-# ✅ CORS (keep simple)
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,8 +27,8 @@ def root():
 # ---------------- CONFIG ----------------
 TRAIN_PATH = "data/twitter_training.csv"
 VAL_PATH = "data/twitter_validation.csv"
-MAX_TWEETS = 25   # 🔥 HARD LIMIT (Render-safe)
-# ----------------------------------------
+MAX_TWEETS = 25   # 🔥 DO NOT INCREASE ON RENDER
+# --------------------------------------
 
 def load_tweets():
     if not os.path.exists(TRAIN_PATH) or not os.path.exists(VAL_PATH):
@@ -44,7 +44,6 @@ def load_tweets():
     df.dropna(subset=["tweet"], inplace=True)
     df["tweet"] = df["tweet"].astype(str)
 
-    # lightweight fake metrics
     df["likes"] = [random.randint(0, 50) for _ in range(len(df))]
     df["retweets"] = [random.randint(0, 20) for _ in range(len(df))]
 
@@ -53,15 +52,16 @@ def load_tweets():
 
     return df
 
-# 🔥 Load ONCE (important)
+
+# Load dataset ONCE
 df = load_tweets()
+
 
 @app.get("/analyze")
 def analyze(query: str):
     if df.empty:
         return {"tweets": [], "timeline": [], "message": "Dataset not loaded"}
 
-    # 🔥 Filter + HARD LIMIT
     filtered = df[df["tweet"].str.contains(query, case=False, na=False)].head(MAX_TWEETS)
 
     if filtered.empty:
@@ -69,20 +69,18 @@ def analyze(query: str):
 
     texts = filtered["tweet"].tolist()
 
-    # 🔥 SAFE sentiment batch
     try:
         sentiments = get_sentiment_batch(texts)
     except Exception:
         return {
             "tweets": [],
             "timeline": [],
-            "message": "Sentiment model failed"
+            "message": "Sentiment model failed on server"
         }
 
     tweets = []
 
     for i, row in enumerate(filtered.itertuples()):
-        # 🔥 GUARD index mismatch
         if i >= len(sentiments):
             break
 
@@ -100,7 +98,6 @@ def analyze(query: str):
                 "confidence": "high"
             })
         except Exception:
-            # 🔥 Skip bad rows instead of crashing
             continue
 
     timeline = [
