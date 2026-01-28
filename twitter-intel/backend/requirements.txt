@@ -5,4 +5,4 @@ uvicorn
 pandas
 scikit-learn
 transformers
-torch==2.1.2+cpu
+torch==2.1.0+cpu
