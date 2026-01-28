@@ -4,13 +4,21 @@ import torch
 import torch.nn.functional as F
 
 MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment"
-
-# Load once (CRITICAL)
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
-model.eval()
-
 LABELS = ["Negative", "Neutral", "Positive"]
+
+# Lazy-loaded globals (CRITICAL for Render Free)
+_tokenizer = None
+_model = None
+
+
+def _load_model():
+    global _tokenizer, _model
+
+    if _tokenizer is None or _model is None:
+        _tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        _model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+        _model.eval()
+
 
 def get_sentiment_batch(texts):
     """
@@ -22,7 +30,10 @@ def get_sentiment_batch(texts):
     if not texts:
         return []
 
-    inputs = tokenizer(
+    # 🔥 Load model ONLY when first needed
+    _load_model()
+
+    inputs = _tokenizer(
         texts,
         return_tensors="pt",
         padding=True,
@@ -31,7 +42,7 @@ def get_sentiment_batch(texts):
     )
 
     with torch.no_grad():
-        outputs = model(**inputs)
+        outputs = _model(**inputs)
         probs = F.softmax(outputs.logits, dim=1)
 
     results = []
