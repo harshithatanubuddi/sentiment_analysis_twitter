@@ -5,6 +5,9 @@ import SearchBar from "../components/searchBar";
 import SentimentChart from "../components/SentimentChart";
 import Timeline from "../components/Timeline";
 
+/* ---------- API BASE (FIXED) ---------- */
+const API_BASE = "https://sentiment-analysis-twitter-backend.onrender.com";
+
 /* ---------- EMOJI SYSTEM ---------- */
 const emotionEmojiMap = {
   joy: "😄",
@@ -57,7 +60,7 @@ export default function Dashboard() {
     setData(null);
 
     try {
-      const res = await axios.get("http://127.0.0.1:8000/analyze", {
+      const res = await axios.get(`${API_BASE}/analyze`, {
         params: { query, _t: Date.now() },
         signal: controllerRef.current.signal,
         timeout: 15000,
