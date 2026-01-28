@@ -1,4 +1,3 @@
-# main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
@@ -25,7 +24,17 @@ app.add_middleware(
 TRAIN_PATH = "data/twitter_training.csv"
 VAL_PATH = "data/twitter_validation.csv"
 
-# ---------- LOAD DATA ----------
+# ---------- GLOBAL CACHE ----------
+_df_cache = None
+
+
+# ---------- HEALTH ----------
+@app.get("/")
+def root():
+    return {"status": "Backend running"}
+
+
+# ---------- LOAD DATA (LAZY) ----------
 def load_tweets():
     if not os.path.exists(TRAIN_PATH) or not os.path.exists(VAL_PATH):
         return pd.DataFrame(columns=["tweet", "timestamp", "likes", "retweets"])
@@ -50,12 +59,19 @@ def load_tweets():
 
     return df
 
-df = load_tweets()
+
+def get_dataframe():
+    global _df_cache
+    if _df_cache is None:
+        _df_cache = load_tweets()
+    return _df_cache
+
 
 # ---------- ANALYZE ----------
 @app.get("/analyze")
 def analyze(query: str):
     query = query.strip()
+    df = get_dataframe()
 
     if df.empty:
         return {"tweets": [], "timeline": [], "message": "Dataset not loaded"}
@@ -79,7 +95,6 @@ def analyze(query: str):
         emotion = get_emotion(row.tweet)
         toxic = is_toxic(row.tweet)
 
-        # Mixed-signal detection (confidence)
         mixed_signal = (
             sentiment_score > 0.3 and emotion in ["anger", "sadness", "fear"]
         ) or (
@@ -105,6 +120,6 @@ def analyze(query: str):
     )
 
     return {
-        "tweets": tweets[:50],   # UI limit
+        "tweets": tweets,
         "timeline": timeline
     }

@@ -1,12 +1,8 @@
-# sentiment.py
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import torch
-import torch.nn.functional as F
 
 MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment"
 LABELS = ["Negative", "Neutral", "Positive"]
 
-# Lazy-loaded globals (CRITICAL for Render Free)
 _tokenizer = None
 _model = None
 
@@ -15,8 +11,14 @@ def _load_model():
     global _tokenizer, _model
 
     if _tokenizer is None or _model is None:
+        import torch
+
+        torch.set_num_threads(1)  # 🔥 critical for small servers
+
         _tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-        _model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+        _model = AutoModelForSequenceClassification.from_pretrained(
+            MODEL_NAME
+        ).to("cpu")
         _model.eval()
 
 
@@ -30,8 +32,10 @@ def get_sentiment_batch(texts):
     if not texts:
         return []
 
-    # 🔥 Load model ONLY when first needed
     _load_model()
+
+    import torch
+    import torch.nn.functional as F
 
     inputs = _tokenizer(
         texts,
