@@ -1,3 +1,4 @@
+#main.py2
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
@@ -10,9 +11,11 @@ from emotion import get_emotion
 from toxicity import is_toxic
 from impact import impact_score
 
+
+
 app = FastAPI()
 
-# CORS
+# ✅ CORRECT CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,11 +27,8 @@ app.add_middleware(
 def root():
     return {"status": "Backend running"}
 
-# ---------------- CONFIG ----------------
 TRAIN_PATH = "data/twitter_training.csv"
 VAL_PATH = "data/twitter_validation.csv"
-MAX_TWEETS = 25   # 🔥 DO NOT INCREASE ON RENDER
-# --------------------------------------
 
 def load_tweets():
     if not os.path.exists(TRAIN_PATH) or not os.path.exists(VAL_PATH):
@@ -52,62 +52,35 @@ def load_tweets():
 
     return df
 
-
-# Load dataset ONCE
 df = load_tweets()
-
 
 @app.get("/analyze")
 def analyze(query: str):
     if df.empty:
         return {"tweets": [], "timeline": [], "message": "Dataset not loaded"}
 
-    filtered = df[df["tweet"].str.contains(query, case=False, na=False)].head(MAX_TWEETS)
+    filtered = df[df["tweet"].str.contains(query, case=False, na=False)].head(50)
 
     if filtered.empty:
         return {"tweets": [], "timeline": [], "message": "No tweets found"}
 
     texts = filtered["tweet"].tolist()
-
-    try:
-        sentiments = get_sentiment_batch(texts)
-    except Exception:
-        return {
-            "tweets": [],
-            "timeline": [],
-            "message": "Sentiment model failed on server"
-        }
+    sentiments = get_sentiment_batch(texts)
 
     tweets = []
-
     for i, row in enumerate(filtered.itertuples()):
-        if i >= len(sentiments):
-            break
+        label, score = sentiments[i]
+        tweets.append({
+            "tweet": row.tweet,
+            "sentiment": label,
+            "sentiment_score": round(score, 3),
+            "emotion": get_emotion(row.tweet),
+            "toxic": is_toxic(row.tweet),
+            "impact": impact_score(score, row.likes, row.retweets),
+            "timestamp": row.timestamp.strftime("%Y-%m-%d %H:%M"),
+            "confidence": "high"
+        })
 
-        try:
-            label, score = sentiments[i]
+    timeline = [{"timestamp": t["timestamp"], "sentiment_score": t["sentiment_score"]} for t in tweets]
 
-            tweets.append({
-                "tweet": row.tweet,
-                "sentiment": label,
-                "sentiment_score": round(float(score), 3),
-                "emotion": get_emotion(row.tweet),
-                "toxic": is_toxic(row.tweet),
-                "impact": impact_score(score, row.likes, row.retweets),
-                "timestamp": row.timestamp.strftime("%Y-%m-%d %H:%M"),
-                "confidence": "high"
-            })
-        except Exception:
-            continue
-
-    timeline = [
-        {"timestamp": t["timestamp"], "sentiment_score": t["sentiment_score"]}
-        for t in tweets
-    ]
-
-    return {
-        "query": query,
-        "total_analyzed": len(tweets),
-        "tweets": tweets,
-        "timeline": timeline
-    }
+    return {"tweets": tweets, "timeline": timeline}
