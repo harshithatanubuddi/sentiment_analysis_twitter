@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import pandas as pd
 from datetime import datetime, timedelta
 import random
@@ -12,11 +13,10 @@ from impact import impact_score
 
 app = FastAPI()
 
-# ---------- CORS ----------
+# ---------- CORS (FIXED) ----------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["*"],          # allow all origins
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -27,12 +27,10 @@ VAL_PATH = "data/twitter_validation.csv"
 # ---------- GLOBAL CACHE ----------
 _df_cache = None
 
-
 # ---------- HEALTH ----------
 @app.get("/")
 def root():
     return {"status": "Backend running"}
-
 
 # ---------- LOAD DATA (LAZY) ----------
 def load_tweets():
@@ -74,18 +72,24 @@ def analyze(query: str):
     df = get_dataframe()
 
     if df.empty:
-        return {"tweets": [], "timeline": [], "message": "Dataset not loaded"}
+        return JSONResponse(content={
+            "tweets": [],
+            "timeline": [],
+            "message": "Dataset not loaded"
+        })
 
     filtered = df[
         df["tweet"].str.contains(query, case=False, na=False, regex=False)
     ].head(50)
 
     if filtered.empty:
-        return {"tweets": [], "timeline": [], "message": "No tweets found"}
+        return JSONResponse(content={
+            "tweets": [],
+            "timeline": [],
+            "message": "No tweets found"
+        })
 
     texts = filtered["tweet"].tolist()
-
-    # 🔥 Batch sentiment (FAST)
     sentiments = get_sentiment_batch(texts)
 
     tweets = []
@@ -119,7 +123,7 @@ def analyze(query: str):
         .to_dict(orient="records")
     )
 
-    return {
+    return JSONResponse(content={
         "tweets": tweets,
         "timeline": timeline
-    }
+    })
