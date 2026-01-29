@@ -38,6 +38,10 @@ const kpiCard = (color) => ({
   textAlign: "center",
 });
 
+/* ---------- BACKEND URL ---------- */
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -57,7 +61,7 @@ export default function Dashboard() {
     setData(null);
 
     try {
-      const res = await axios.get("http://127.0.0.1:8000/analyze", {
+      const res = await axios.get(`${API_BASE_URL}/analyze`, {
         params: { query, _t: Date.now() },
         signal: controllerRef.current.signal,
         timeout: 60000,
