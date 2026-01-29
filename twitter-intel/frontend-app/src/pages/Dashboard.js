@@ -40,7 +40,7 @@ const kpiCard = (color) => ({
 
 /* ---------- BACKEND URL ---------- */
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+  process.env.REACT_APP_API_BASE_URL || "http://127.0.0.1:8000";
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
